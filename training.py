@@ -29,3 +29,29 @@ val_tfms = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
 ])
+
+# ---------------- Dataset ----------------
+# Load once to get class info + consistent split indices
+base_dataset = datasets.ImageFolder(DATA_DIR)
+class_names = base_dataset.classes
+num_classes = len(class_names)
+print(f"Found {num_classes} classes, {len(base_dataset)} images")
+
+n_val = int(VAL_SPLIT * len(base_dataset))
+n_train = len(base_dataset) - n_val
+
+generator = torch.Generator().manual_seed(SEED) #garantit la séparation des données et l'ordre aléatoire de celles-ci
+train_subset, val_subset = random_split(base_dataset, [n_train, n_val], generator=generator)#crée deux sous-ensembles de données à partir du jeu de données de base, un pour l'entraînement et un pour la validation, en utilisant les indices générés par le générateur aléatoire
+train_indices = train_subset.indices
+val_indices = val_subset.indices
+
+# Two separate ImageFolder instances with different transforms,
+# sharing the same underlying file order (so indices line up)
+train_full = datasets.ImageFolder(DATA_DIR, transform=train_tfms)#sauvegarde des images
+val_full = datasets.ImageFolder(DATA_DIR, transform=val_tfms)#sauvegarde des images
+
+train_ds = torch.utils.data.Subset(train_full, train_indices)  #data set
+val_ds = torch.utils.data.Subset(val_full, val_indices)   #data set
+
+train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2) #shuffle = mélange, veut qu'il y ai le mélange
+val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=2) #pas la peine à la validation 
