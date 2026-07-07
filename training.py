@@ -55,3 +55,15 @@ val_ds = torch.utils.data.Subset(val_full, val_indices)   #data set
 
 train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2) #shuffle = mélange, veut qu'il y ai le mélange
 val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=2) #pas la peine à la validation 
+
+# ---------------- Model ----------------
+model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1) #resnet = fonction préséfinie, modèle de réseau de neurones convolutifs pour la classification d'images, pré-entraîné sur le jeu de données ImageNet
+
+for param in model.parameters(): #sauvegarde des paramètres du modèle, itère sur tous les paramètres du modèle et les rend non entraînables, ce qui signifie que leurs valeurs ne seront pas mises à jour pendant l'entraînement
+    param.requires_grad = False
+
+model.fc = nn.Linear(model.fc.in_features, num_classes)#fc = la dernière couche, reprend notre résultat et l'intègre dans le modèle prédéfini
+model = model.to(DEVICE)#la variable DEVICE est utilisée pour spécifier l'appareil sur lequel le modèle sera exécuté, dans ce cas, le CPU. Le modèle est déplacé vers cet appareil à l'aide de la méthode .to().
+
+criterion = nn.CrossEntropyLoss()#fonction qui calcule l'erreur du modèle
+optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-3) #adam = optimisuer, ce sont des variables qu'on mofifie pour réduire la perte
