@@ -67,3 +67,50 @@ model = model.to(DEVICE)#la variable DEVICE est utilisée pour spécifier l'appa
 
 criterion = nn.CrossEntropyLoss()#fonction qui calcule l'erreur du modèle
 optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-3) #adam = optimisuer, ce sont des variables qu'on mofifie pour réduire la perte
+
+# ---------------- Train / Eval loops ----------------
+def train_one_epoch(loader):
+    model.train() #entraînement du modèle
+    total_loss, correct, total = 0.0, 0, 0 
+    for x, y in loader:
+        x, y = x.to(DEVICE), y.to(DEVICE) #x= image, y=label
+        optimizer.zero_grad() # nouveau calcul entre chaque lot, réinitialise les gradients des paramètres du modèle à zéro avant de calculer les gradients pour le lot actuel
+        out = model(x) # le modèle prédit les classes des images d'entrée x, et les résultats sont stockés dans la variable out
+        loss = criterion(out, y) # la perte est calculée en comparant les prédictions du modèle (out) avec les étiquettes réelles (y) à l'aide de la fonction de perte définie précédemment (criterion)
+        loss.backward() 
+        optimizer.step() #améliore les paramètres du modèle en fonction des gradients calculés lors de la rétropropagation
+        total_loss += loss.item() * x.size(0) 
+        correct += (out.argmax(1) == y).sum().item() 
+        total += x.size(0)
+    return total_loss / total, correct / total #attention, c'est des divisions, 1ère=perte moyenne, 2ème=exactitude moyenne
+
+@torch.no_grad() #décorateur qui commence par @, désactiver le calcul donc arreter l'entrainement
+def evaluate(loader): 
+    model.eval()
+    total_loss, correct, total = 0.0, 0, 0 
+    for x, y in loader:
+        x, y = x.to(DEVICE), y.to(DEVICE)
+        out = model(x)
+        loss = criterion(out, y)
+        total_loss += loss.item() * x.size(0)
+        correct += (out.argmax(1) == y).sum().item()
+        total += x.size(0)
+    return total_loss / total, correct / total #il a fait la même chose que la fonction train_one_epoch mais sans l'entrainement, juste pour évaluer le modèle, sans optimiser zero grad, backward et optimiser
+
+# ---------------- Training ----------------
+best_acc = 0.0 #comparer les performances du modèle sur l'ensemble de validation à chaque époque et enregistrer le modèle si sa exactitude est meilleure que la meilleure exactitude précédente
+for epoch in range(NUM_EPOCHS): 
+    tr_loss, tr_acc = train_one_epoch(train_loader)
+    val_loss, val_acc = evaluate(val_loader)
+    print(f"[epoch {epoch+1}/{NUM_EPOCHS}] "
+          f"train_loss={tr_loss:.3f} train_acc={tr_acc:.3f} | "
+          f"val_loss={val_loss:.3f} val_acc={val_acc:.3f}")
+
+    if val_acc > best_acc:
+        best_acc = val_acc
+        torch.save({ #enregistre le modèle dans un fichier nommé "best_car_brand_model.pth" en utilisant la fonction torch.save(). 
+            "class_names": class_names,
+        }, "best_car_brand_model.pth")
+
+print(f"\nBest val acc: {best_acc:.3f}") 
+print("Saved to best_car_brand_model.pth")
