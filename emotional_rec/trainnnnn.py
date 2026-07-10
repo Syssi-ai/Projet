@@ -1,40 +1,51 @@
+import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-from PIL import Image
-from tensorflow.keras.applications.vgg16 import VGG16, preprocess_input, decode_predictions
-from tensorflow.keras.models import Model
-#vGG16 cest le modele pre entrainee (comme resnet18) 
-#cifar, imagenet sont des dataset 
-#vgg16 et resnet18 = modeles pre-entraines
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, decode_predictions, preprocess_input
 
 
-model = VGG16(weights='imagenet')
-#on a declare une variable model, dans laquelle on a importe le modele VGG16
-#weights = poids 
-#weights cest le truc quapprend le modele 
-img_path = "Happy.jpg"  
-img = Image.open(img_path).convert('RGB')
-img = img.resize((224, 224)) #224x224 pixels = taille de limage
-
-img_array = np.array(img) #create tableau 4 images
-img_array = np.expand_dims(img_array, axis=0) 
-img_array = preprocess_input(img_array)
-
-preds = model.predict(img_array) #on a declare une variable preds
-#dans laquelle on a sauvgarde le resultat predit par le modele
-decoded = decode_predictions(preds, top=5)[0]
-
-#on prend le top5 des meilleures classes predites
+def predict_frame(model, frame, top_k=3):
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    resized = cv2.resize(rgb_frame, (224, 224))
+    image_array = np.expand_dims(resized.astype(np.float32), axis=0)
+    image_array = preprocess_input(image_array)
+    predictions = model.predict(image_array, verbose=0)
+    return decode_predictions(predictions, top=top_k)[0]
 
 
-plt.figure(figsize=(6, 6))
-plt.imshow(img)
-plt.axis('on')
+def main():
+    model = MobileNetV2(weights="imagenet")
+    capture = cv2.VideoCapture(0)
 
-#afficher l'image avec la fonction plt
-title = "Predictions:\n"
-for label, name, prob in decoded:
-    title += f"{name}: {prob*100:.1f}%\n"
+    if not capture.isOpened():
+        raise RuntimeError("Camera not available. Check permissions or camera index.")
 
-plt.title(title)
-plt.show()
+    last_predictions = []
+    frame_count = 0
+
+    while True:
+        success, frame = capture.read()
+        if not success:
+            break
+
+        frame_count += 1
+        if frame_count % 10 == 0:
+            last_predictions = predict_frame(model, frame)
+
+        y = 30
+        overlay = frame.copy()
+        for _, label, probability in last_predictions:
+            text = f"{label}: {probability * 100:.1f}%"
+            cv2.putText(overlay, text, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            y += 30
+
+        cv2.imshow("Live object test - press q to quit", overlay)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    capture.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()
