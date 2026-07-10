@@ -1,6 +1,5 @@
 import streamlit as st
 import numpy as np
-import cv2
 from PIL import Image
 from tensorflow.keras.models import load_model
 from tensorflow.keras.applications.mobilenet_v2 import (
@@ -8,11 +7,11 @@ from tensorflow.keras.applications.mobilenet_v2 import (
     decode_predictions,
 )
 
-st.set_page_config(page_title="Classification d'images", page_icon="📷")
+st.set_page_config(page_title="Classification d'images - MobileNetV2", page_icon="📷")
 
-st.title("📷 Classification d'images")
+st.title("📷 Classification d'images avec MobileNetV2")
 st.write(
-    "Prends une photo avec ta caméra ou télécharge une image, "
+    "Prends une photo avec ta caméra ou upload une image, "
     "et le modèle te dira ce qu'il reconnaît."
 )
 
@@ -23,11 +22,11 @@ def load_my_model(path="mobilenetv2.keras"):
 
 
 def predict_image(model, pil_image, top_k=3):
-    # Convertit l'image PIL (RGB) en tableau numpy
-    frame = np.array(pil_image.convert("RGB"))
-    resized = cv2.resize(frame, (224, 224))
+    # Convertit l'image PIL en RGB puis la redimensionne (remplace cv2.resize)
+    resized = pil_image.convert("RGB").resize((224, 224))
+    frame = np.array(resized)
 
-    x = np.expand_dims(resized.astype(np.float32), axis=0)
+    x = np.expand_dims(frame.astype(np.float32), axis=0)
     x = preprocess_input(x)
 
     preds = model.predict(x, verbose=0)
@@ -46,7 +45,7 @@ with st.spinner("Chargement du modèle..."):
 st.divider()
 
 # Choix de la source de l'image
-source = st.radio("Source de l'image :", ["📷 Caméra", "📁 Télécharger"], horizontal=True)
+source = st.radio("Source de l'image :", ["📷 Caméra", "📁 Upload"], horizontal=True)
 
 image = None
 
